@@ -65,8 +65,11 @@ for feature, feature_info in features.items():
     # Set the current column information
     if feature_info.get('enum', None):
         column_info = {
+            'name': column,
             'enum': feature_info['enum'],
             'range': len(feature_info['enum']),
+            'min': 0,
+            'max': len(feature_info['enum'])-1,
             'is_integer': False,
             'categories': feature_info.get('categories', [])
         }
@@ -75,8 +78,11 @@ for feature, feature_info in features.items():
         if feature_info.get('type', None) == 'integer':
             if feature_info.get('minimum', None) and feature_info.get('maximum', None):
                 column_info = {
+                    'name': column,
                     'enum': [],
                     'range': feature_info['maximum'] - feature_info['minimum'] + 1,
+                    'min': feature_info['minimum'],
+                    'max': feature_info['maximum'],
                     'is_integer': True,
                     'categories': feature_info.get('categories', [])
                 }
@@ -111,11 +117,9 @@ is_useful_feature = np.sum(np.isfinite(data_np), axis=0) > 0
 useful_features = [k for i, k in enumerate(data_column_info.keys()) if is_useful_feature[i]]
 
 
-def get_feature_count_matrix(x1, x2):
+def get_feature_count_matrix(x1, x2, u_x1, u_x2):
     # TODO: This won't handle cases where there are invalid values in the data
-    u_x1 = np.unique(x1)
-    u_x2 = np.unique(x2)
-
+    
     feat_count_mat = np.zeros((len(u_x1) - 1, len(u_x2) - 1))
 
     for cx1, cx2 in zip(x1, x2):
@@ -123,9 +127,64 @@ def get_feature_count_matrix(x1, x2):
             i_x1 = np.where(u_x1 == cx1)[0][0]
             i_x2 = np.where(u_x2 == cx2)[0][0]
 
-            feat_count_mat[i_x1, i_x2] += 1
+            feat_count_mat[i_x2, i_x1] += 1 # x2 should be on the rows and x1 on the cols
 
-    return feat_count_mat
+    row_count = np.sum(feat_count_mat, axis=0)
+    row_density = row_count / np.sum(row_count)
+
+    # This is a little confusing because when you sum through the rows, you have something the length of the columns
+    col_summary = [{"frequency": row_count[ind], "percentage": row_count[ind]} for ind in range(row_count.size)], # cols will refer to feature_a (x1)
+
+
+    col_count = np.sum(feat_count_mat, axis=1)
+    col_density = col_count / np.sum(col_count)
+    
+    # This is a little confusing because when you sum through the columns, you have something the length of the rows
+    row_summary = [{"frequency": col_count[ind], "percentage": col_density[ind]} for ind in range(col_count.size)], # rows will refer to feature_b (x2)
+    
+
+    return feat_count_mat, row_summary, col_summary
+
+def get_feature_info_from_column_info(column_info):
+    
+    if column_info['is_integer']:
+        feature_qualifiers = [
+            {"operator": "=", "value": i + column_info['min']}
+            for i in column_info['range']
+        ]
+    else: # enum
+        feature_qualifiers = [
+            {"operator": "=", "value": k}
+            for k in column_info['enum'].keys()
+        ]
+
+    return {
+        'feature_name': column_info['name'],
+        'feature_qualifiers': feature_qualifiers
+    }
+
+def get_feature_matrix_json(count_mat):
+    
+    row_counts = np.sum(count_mat, axis=1)
+    total = np.sum(row_counts)
+    col_counts = np.sum(count_mat, axis=0)
+    
+    matrix_dict = []
+    for i in count_mat.shape[0]:
+        row = []
+        for j in count_mat.shape[1]:
+            v = count_mat[i,j]
+            row.append({
+                "frequency": v,
+                "row_percentage": v / row_counts[i],
+                "col_percentage": v / col_counts[j],
+                "total_percentage": v / total,
+            })
+        matrix_dict.append(row)
+    
+
+    return matrix_dict
+
 
 
 node_list = []
@@ -143,6 +202,13 @@ for i_col, (i_column, i_column_info) in enumerate(tqdm(data_column_info.items())
     # print(i_identifiers)
     if i_identifiers is None:
         continue
+
+    feature_description_1 = get_feature_info_from_column_info(i_column_info)
+    x1 = data_np[:, i_col]
+    if i_column_info['is_integer']:
+        u_x1 = [ind + j_column_info['min'] for ind in range(i_column_info['range'])]
+    else: # enum
+        u_x1 = range(len(i_column_info['enum']))
 
     # DEBUG: save names of normalized nodes
     if NORMALIZE:
@@ -200,13 +266,32 @@ for i_col, (i_column, i_column_info) in enumerate(tqdm(data_column_info.items())
             except Exception as e:
                 print('Something went wrong', e)
 
-        x1 = data_np[:, i_col]
+        feature_description_2 = get_feature_info_from_column_info(j_column_info)
         x2 = data_np[:, j_col]
-
+        if j_column_info['is_integer']:
+            u_x2 = [ind + j_column_info['min'] for ind in range(j_column_info['range'])]
+        else: # enum
+            u_x2 = range(len(j_column_info['enum']))
+       
         # Calculate stats for i_col and j_col
-
-        count_mat = get_feature_count_matrix(x1, x2)
+        # x1 is the column_sum
+        # x2 is the row_sum
+        count_mat, row_summary, col_summary = get_feature_count_matrix(x1, x2, u_x1, u_x2)
         chi_squared, p, *_ = chi2_contingency(count_mat + np.finfo(np.float32).eps, correction=False)
+
+        # Package edge properties
+        edge_props = {
+            'feature_a': feature_description_1,
+            'feature_b': feature_description_2,
+            'feature_matrix': get_feature_matrix_json(count_mat),
+            'rows': row_summary, 
+            'columns': col_summary,
+            "total": np.sum(count_mat),
+            "chi_squared": chi_squared,
+            "p_value": p,
+            "icees_subject_feature": i_column,
+            "icees_object_feature": j_column
+        }
 
         for i_id in i_identifiers:
             for j_id in j_identifiers:
@@ -228,12 +313,7 @@ for i_col, (i_column, i_column_info) in enumerate(tqdm(data_column_info.items())
                     subject_id=i_id,
                     object_id=j_id,
                     predicate="biolink:related_to",
-                    edgeprops={
-                        "chi_squared": chi_squared,
-                        "p_value": p,
-                        "icees_subject_feature": i_column,
-                        "icees_object_feature": j_column
-                    },
+                    edgeprops=edge_props,
                 )
                 edge_list.append(new_edge)
 
