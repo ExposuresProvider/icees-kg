@@ -1,11 +1,13 @@
 import csv
 from dotenv import load_dotenv
 import json
+import logging
 import numpy as np
 import os
 from pathlib import Path
 import requests
 from scipy.stats import chi2_contingency
+import sys
 from tqdm import tqdm
 import yaml
 
@@ -14,6 +16,16 @@ from Data_services.Common.kgx_file_writer import KGXFileWriter
 from Data_services.Common.kgx_file_normalizer import remove_orphan_nodes
 
 load_dotenv()
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(asctime)s: %(levelname)s/%(name)s]: %(message)s",
+    handlers=[
+        logging.FileHandler("./logs/icees_kg.log"),
+        logging.StreamHandler(sys.stdout),
+    ]
+)
+LOGGER = logging.getLogger("make_jsons.py")
 
 data_path = os.getenv('DATA_PATH', None)
 assert data_path is not None, 'An environmental variable called DATA_PATH is required.'
@@ -30,7 +42,7 @@ node_norm = os.getenv('NODE_NORM', 'https://nodenormalization-sri.renci.org/get_
 NORMALIZE = True
 
 data = []
-print('Loading data files...')
+LOGGER.info('Loading data files...')
 for data_csv in tqdm(data_csvs):
     with open(data_csv, 'r') as f:
         c_data = [row for row in csv.DictReader(f)]
@@ -44,7 +56,7 @@ with open(identifiers_yml, 'r') as f:
     full_identifiers = yaml.safe_load(f)
     identifiers = full_identifiers['patient']
 
-print('Done loading files!')
+LOGGER.info('Done loading files!')
 
 data_columns = list(data[0].keys())
 data_column_info = dict()
@@ -196,14 +208,13 @@ edge_list = []
 node_dict = {}
 normalized_nodes = {}
 
-print('Creating nodes and edges...')
+LOGGER.info('Creating nodes and edges...')
 for i_col, (i_column, i_column_info) in enumerate(tqdm(data_column_info.items())):
 
     # Don't worry about the features that are always empty
     if not (i_column in useful_features):
         continue
     i_identifiers = identifiers.get(i_column, None)
-    # print(i_identifiers)
     if i_identifiers is None:
         continue
 
@@ -217,13 +228,17 @@ for i_col, (i_column, i_column_info) in enumerate(tqdm(data_column_info.items())
     # DEBUG: save names of normalized nodes
     if NORMALIZE:
         body = {'curies': i_identifiers}
-        response = requests.post(node_norm, json=body)
+        try:
+            response = requests.post(node_norm, json=body)
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            LOGGER.warning(f"Failed to contact node norm for: {i_column}")
         try:
             normalized_identifiers = response.json()
             try:
                 normalized_nodes[i_column] = [node['id'].get('label', '') for node in normalized_identifiers.values() if node is not None]
             except Exception as e:
-                print('Unable to get normalized nodes:', e)
+                LOGGER.warning('Unable to parse normalized nodes:', e)
             for curie, node in normalized_identifiers.items():
                 if node is not None:
                     node_dict[curie] = {
@@ -234,7 +249,7 @@ for i_col, (i_column, i_column_info) in enumerate(tqdm(data_column_info.items())
                     if 'information_content' in node:
                         node_dict[curie]['information_content'] = node['information_content']
         except Exception as e:
-            print('Something went wrong', e)
+            LOGGER.error(f"Failed to parse node norm response: {e}")
 
     for j_col, (j_column, j_column_info) in enumerate(data_column_info.items()):
         if j_col <= i_col:
@@ -251,13 +266,17 @@ for i_col, (i_column, i_column_info) in enumerate(tqdm(data_column_info.items())
         # DEBUG: save names of normalized nodes
         if NORMALIZE:
             body = {'curies': j_identifiers}
-            response = requests.post(node_norm, json=body)
+            try:
+                response = requests.post(node_norm, json=body)
+                response.raise_for_status()
+            except requests.exceptions.HTTPError as e:
+                LOGGER.warning(f"Failed to contact node norm for: {i_column}")
             try:
                 normalized_identifiers = response.json()
                 try:
                     normalized_nodes[j_column] = [node['id'].get('label', '') for node in normalized_identifiers.values() if node is not None]
                 except Exception as e:
-                    print('Unable to get normalized nodes:', e)
+                    LOGGER.warning('Unable to parse normalized nodes:', e)
                 for curie, node in normalized_identifiers.items():
                     if node is not None:
                         node_dict[curie] = {
@@ -268,7 +287,7 @@ for i_col, (i_column, i_column_info) in enumerate(tqdm(data_column_info.items())
                         if 'information_content' in node:
                             node_dict[curie]['information_content'] = node['information_content']
             except Exception as e:
-                print('Something went wrong', e)
+                LOGGER.error(f"Failed to parse node norm response: {e}")
 
         feature_description_2 = get_feature_info_from_column_info(j_column_info)
         x2 = data_np[:, j_col]
@@ -321,7 +340,7 @@ for i_col, (i_column, i_column_info) in enumerate(tqdm(data_column_info.items())
                 )
                 edge_list.append(new_edge)
 
-print('Writing files...')
+LOGGER.info('Writing files...')
 
 if not os.path.exists('./build'):
     os.makedirs('./build')
