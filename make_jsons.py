@@ -38,8 +38,7 @@ identifiers_yml = os.getenv('IDENTIFIERS_YAML', None)
 assert identifiers_yml is not None, 'An environmental variable called IDENTIFIERS_YAML is required.'
 
 node_norm = os.getenv('NODE_NORM', 'https://nodenormalization-sri.renci.org/get_normalized_nodes')
-
-NORMALIZE = True
+name_resolver = os.getenv('NAME_RESOLVER', 'https://name-resolution-sri.renci.org/lookup')
 
 data = []
 LOGGER.info('Loading data files...')
@@ -56,8 +55,7 @@ with open(identifiers_yml, 'r') as f:
     full_identifiers = yaml.safe_load(f)
     identifiers = full_identifiers['patient']
 
-LOGGER.info('Done loading files!')
-
+LOGGER.info('Making data columns...')
 data_columns = list(data[0].keys())
 data_column_info = dict()
 for feature, feature_info in features.items():
@@ -67,6 +65,10 @@ for feature, feature_info in features.items():
         feature_column_index = data_columns.index(feature)
     except ValueError:
         # This yaml feature is not found in the data csv
+        continue
+
+    if 'search_term' not in feature_info:
+        # we need a search term in order to include in kg
         continue
 
     # Double check that the features match
@@ -83,7 +85,9 @@ for feature, feature_info in features.items():
             'min': 0,
             'max': len(feature_info['enum']) - 1,
             'is_integer': False,
-            'categories': feature_info.get('categories', [])
+            'categories': feature_info.get('categories', []),
+            'search_term': feature_info.get('search_term', ''),
+            'limit': feature_info.get('limit', 100),
         }
     else:
         # No enum, probably an integer and may have min and max
@@ -96,7 +100,9 @@ for feature, feature_info in features.items():
                     'min': feature_info['minimum'],
                     'max': feature_info['maximum'],
                     'is_integer': True,
-                    'categories': feature_info.get('categories', [])
+                    'categories': feature_info.get('categories', []),
+                    'search_term': feature_info.get('search_term', ''),
+                    'limit': feature_info.get('limit', 100),
                 }
             else:
                 continue
@@ -123,7 +129,7 @@ for i_col, (column, column_info) in enumerate(data_column_info.items()):
     # The above does this in place
     # data_np[:,i_col] = data_col_np
 
-
+LOGGER.info('Getting useful features...')
 # Some features are all empty? So let's not worry about them
 is_useful_feature = np.sum(np.isfinite(data_np), axis=0) > 0
 useful_features = [k for i, k in enumerate(data_column_info.keys()) if is_useful_feature[i]]
@@ -206,7 +212,6 @@ def get_feature_matrix_json(count_mat):
 node_list = []
 edge_list = []
 node_dict = {}
-normalized_nodes = {}
 
 LOGGER.info('Creating nodes and edges...')
 for i_col, (i_column, i_column_info) in enumerate(tqdm(data_column_info.items())):
@@ -214,8 +219,20 @@ for i_col, (i_column, i_column_info) in enumerate(tqdm(data_column_info.items())
     # Don't worry about the features that are always empty
     if not (i_column in useful_features):
         continue
-    i_identifiers = identifiers.get(i_column, None)
-    if i_identifiers is None:
+
+    # name resolve any search terms
+    if not ('search_term' in i_column_info):
+        continue
+    params = {'string': i_column_info['search_term'], 'limit': i_column_info['limit']}
+    try:
+        response = requests.post(name_resolver, params=params, data=None)
+        response.raise_for_status()
+    except requests.exceptions.HTTPError as e:
+        print(f'Failed to get identifiers for {i_column}')
+        continue
+    response_json = response.json()
+    i_identifiers = list(response_json.keys())
+    if not len(i_identifiers):
         continue
 
     feature_description_1 = get_feature_info_from_column_info(i_column_info)
@@ -225,20 +242,63 @@ for i_col, (i_column, i_column_info) in enumerate(tqdm(data_column_info.items())
     else:  # enum
         u_x1 = list(range(len(i_column_info['enum'])))
 
-    # DEBUG: save names of normalized nodes
-    if NORMALIZE:
-        body = {'curies': i_identifiers}
+    body = {'curies': i_identifiers}
+    try:
+        response = requests.post(node_norm, json=body)
+        response.raise_for_status()
+    except requests.exceptions.HTTPError as e:
+        LOGGER.error(f"Failed to contact node normalizer for {i_column}: {e}")
+        continue
+    try:
+        normalized_identifiers = response.json()
+        for curie, node in normalized_identifiers.items():
+            if node is not None:
+                node_dict[curie] = {
+                    'name': node['id'].get('label', ''),
+                    'equivalent_identifiers': node.get('equivalent_identifiers', []),
+                    'categories': set(node.get('type', [])),
+                }
+                if 'information_content' in node:
+                    node_dict[curie]['information_content'] = node['information_content']
+    except Exception as e:
+        LOGGER.error(f"Failed to parse node norm response: {e}")
+
+    for j_col, (j_column, j_column_info) in enumerate(data_column_info.items()):
+        if j_col <= i_col:
+            # Do upper triangle only
+            continue
+        # Don't worry about the features that are always empty
+        if not (j_column in useful_features):
+            continue
+
+        # name resolve any search terms
+        if not ('search_term' in j_column_info):
+            continue
+        params = {'string': j_column_info['search_term'], 'limit': j_column_info['limit']}
+        try:
+            response = requests.post(name_resolver, params=params, data=None)
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            print(f'Failed to get identifiers for {j_column}')
+            continue
+        response_json = response.json()
+        j_identifiers = list(response_json.keys())
+        if not len(j_identifiers):
+            continue
+
+        # print(j_identifiers)
+        if j_identifiers is None:
+            continue
+
+        body = {'curies': j_identifiers}
         try:
             response = requests.post(node_norm, json=body)
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
             LOGGER.warning(f"Failed to contact node norm for: {i_column}")
+            continue
         try:
             normalized_identifiers = response.json()
-            try:
-                normalized_nodes[i_column] = [node['id'].get('label', '') for node in normalized_identifiers.values() if node is not None]
-            except Exception as e:
-                LOGGER.warning('Unable to parse normalized nodes:', e)
             for curie, node in normalized_identifiers.items():
                 if node is not None:
                     node_dict[curie] = {
@@ -250,44 +310,6 @@ for i_col, (i_column, i_column_info) in enumerate(tqdm(data_column_info.items())
                         node_dict[curie]['information_content'] = node['information_content']
         except Exception as e:
             LOGGER.error(f"Failed to parse node norm response: {e}")
-
-    for j_col, (j_column, j_column_info) in enumerate(data_column_info.items()):
-        if j_col <= i_col:
-            # Do upper triangle only
-            continue
-        # Don't worry about the features that are always empty
-        if not (j_column in useful_features):
-            continue
-        j_identifiers = identifiers.get(j_column, None)
-        # print(j_identifiers)
-        if j_identifiers is None:
-            continue
-
-        # DEBUG: save names of normalized nodes
-        if NORMALIZE:
-            body = {'curies': j_identifiers}
-            try:
-                response = requests.post(node_norm, json=body)
-                response.raise_for_status()
-            except requests.exceptions.HTTPError as e:
-                LOGGER.warning(f"Failed to contact node norm for: {i_column}")
-            try:
-                normalized_identifiers = response.json()
-                try:
-                    normalized_nodes[j_column] = [node['id'].get('label', '') for node in normalized_identifiers.values() if node is not None]
-                except Exception as e:
-                    LOGGER.warning('Unable to parse normalized nodes:', e)
-                for curie, node in normalized_identifiers.items():
-                    if node is not None:
-                        node_dict[curie] = {
-                            'name': node['id'].get('label', ''),
-                            'equivalent_identifiers': node.get('equivalent_identifiers', []),
-                            'categories': set(node.get('type', [])),
-                        }
-                        if 'information_content' in node:
-                            node_dict[curie]['information_content'] = node['information_content']
-            except Exception as e:
-                LOGGER.error(f"Failed to parse node norm response: {e}")
 
         feature_description_2 = get_feature_info_from_column_info(j_column_info)
         x2 = data_np[:, j_col]
@@ -344,10 +366,6 @@ LOGGER.info('Writing files...')
 
 if not os.path.exists('./build'):
     os.makedirs('./build')
-
-if NORMALIZE:
-    with open('./build/normalized_nodes.json', 'w') as f:
-        json.dump(normalized_nodes, f)
 
 for node, node_vals in node_dict.items():
     node_list.append(kgxnode(
