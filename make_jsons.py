@@ -157,7 +157,7 @@ def get_feature_count_matrix(x1, x2, u_x1, u_x2, feature_1, feature_2):
     row_density = row_count / np.sum(row_count)
 
     # This is a little confusing because when you sum through the rows, you have something the length of the columns
-    col_summary = [{"frequency": row_count[ind], "percentage": row_count[ind]} for ind in range(row_count.size)],  # cols will refer to feature_a (x1)
+    col_summary = [{"frequency": row_count[ind], "percentage": row_density[ind]} for ind in range(row_count.size)],  # cols will refer to feature_a (x1)
 
     col_count = np.sum(feat_count_mat, axis=1)
     col_density = col_count / np.sum(col_count)
@@ -193,20 +193,26 @@ def get_feature_matrix_json(count_mat):
     total = np.sum(row_counts)
     col_counts = np.sum(count_mat, axis=0)
 
-    matrix_dict = []
+    matrix = []
     for i in range(count_mat.shape[0]):
         row = []
         for j in range(count_mat.shape[1]):
             v = count_mat[i, j]
+            row_percentage = v / row_counts[i]
+            if np.isnan(row_percentage):
+                row_percentage = None
+            col_percentage = v / col_counts[j]
+            if np.isnan(col_percentage):
+                col_percentage = None
             row.append({
                 "frequency": v,
-                "row_percentage": v / row_counts[i],
-                "col_percentage": v / col_counts[j],
+                "row_percentage": row_percentage,
+                "col_percentage": col_percentage,
                 "total_percentage": v / total,
             })
-        matrix_dict.append(row)
+        matrix.append(row)
 
-    return matrix_dict
+    return matrix
 
 
 node_list = []
@@ -255,7 +261,7 @@ for i_col, (i_column, i_column_info) in enumerate(tqdm(data_column_info.items())
             if node is not None:
                 node_dict[curie] = {
                     'name': node['id'].get('label', ''),
-                    'equivalent_identifiers': node.get('equivalent_identifiers', []),
+                    'equivalent_identifiers': [eq_identifier['identifier'] for eq_identifier in node.get('equivalent_identifiers', [])],
                     'categories': set(node.get('type', [])),
                 }
                 if 'information_content' in node:
@@ -303,7 +309,7 @@ for i_col, (i_column, i_column_info) in enumerate(tqdm(data_column_info.items())
                 if node is not None:
                     node_dict[curie] = {
                         'name': node['id'].get('label', ''),
-                        'equivalent_identifiers': node.get('equivalent_identifiers', []),
+                        'equivalent_identifiers': [eq_identifier['identifier'] for eq_identifier in node.get('equivalent_identifiers', [])],
                         'categories': set(node.get('type', [])),
                     }
                     if 'information_content' in node:
@@ -326,16 +332,18 @@ for i_col, (i_column, i_column_info) in enumerate(tqdm(data_column_info.items())
 
         # Package edge properties
         edge_props = {
-            'feature_a': feature_description_1,
-            'feature_b': feature_description_2,
-            'feature_matrix': get_feature_matrix_json(count_mat),
-            'rows': row_summary,
-            'columns': col_summary,
-            "total": np.sum(count_mat),
-            "chi_squared": chi_squared,
-            "p_value": p,
-            "icees_subject_feature": i_column,
-            "icees_object_feature": j_column
+            'contingency:matrices': [
+                {
+                    'feature_a': feature_description_1,
+                    'feature_b': feature_description_2,
+                    'feature_matrix': get_feature_matrix_json(count_mat),
+                    'rows': row_summary,
+                    'columns': col_summary,
+                    "total": np.sum(count_mat),
+                    "chi_squared": chi_squared,
+                    "p_value": p,
+                },
+            ]
         }
 
         for i_id in i_identifiers:
@@ -358,6 +366,7 @@ for i_col, (i_column, i_column_info) in enumerate(tqdm(data_column_info.items())
                     subject_id=i_id,
                     object_id=j_id,
                     predicate="biolink:related_to",
+                    original_knowledge_source="infores:icees-kg",
                     edgeprops=edge_props,
                 )
                 edge_list.append(new_edge)
@@ -379,8 +388,8 @@ for node, node_vals in node_dict.items():
     ))
 
 # Write json output output
-nodes_output_file_path = './build/p_val_nodes.json'
-edges_output_file_path = './build/p_val_edges.json'
+nodes_output_file_path = './build/p_val_nodes.jsonl'
+edges_output_file_path = './build/p_val_edges.jsonl'
 
 with KGXFileWriter(nodes_output_file_path, edges_output_file_path) as file_writer:
 
@@ -395,3 +404,5 @@ with KGXFileWriter(nodes_output_file_path, edges_output_file_path) as file_write
         file_writer.write_kgx_node(node)
 
 orphan_nodes_removed = remove_orphan_nodes(nodes_output_file_path, edges_output_file_path)
+
+LOGGER.info('All done!')

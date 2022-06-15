@@ -1,0 +1,26 @@
+{
+  "column": {
+    "resolution": {
+      "name_lookup": {
+        "search_term": "asthma",
+        "limit": 1
+      }
+    }
+  },
+  "column2": {
+    "resolution": {
+      "curie_lookup": {
+        "curies": ["asthma"]
+      }
+    }
+  },
+  "column3": {
+    "resolution": {
+      "qualifiers": {
+        "search_term": "asthma",
+        "qualifiers": {},
+        "limit": 1
+      }
+    }
+  }
+}

@@ -44,6 +44,7 @@ DATA_PATH="FILL_THIS_IN"
 FEATURES_YAML="FILL_THIS_IN"
 IDENTIFIERS_YAML="FILL_THIS_IN"
 NODE_NORM="FILL_THIS_IN"
+NAME_RESOLVER="FILL_THIS_IN"
 
 # 3. Generate P-Values tsv file
 There are two scripts that need to be run to generate tsv values that will be used by PLATER CLI tools to create a neo4j database with curie p-values. Both of these scripts live in the `./tsv_maker/` folder.
@@ -74,7 +75,7 @@ The `jsons_to_tsv.py` script creates two files: `p_val_edges.tsv` and `p_val_nod
 # Local Development:
 If you want to run everything locally, your local instance of neo4j needs to have the `apoc` plugin installed. Run the following command to create the docker image:
 ```bash
-docker run -d --name icees_kg \
+sudo docker run -d --name icees_kg \
     -p 7474:7474 \
     -p 7687:7687 \
     -e NEO4J_AUTH=neo4j/test \
@@ -108,7 +109,7 @@ This spins up a PLATER api that can be accessed at port 8080 (as defined in the 
 First, create neo4j database docker container 
 
 ```bash
-docker run -d --name icees_kg \
+sudo docker run -d --name icees_kg \
     -p 7474:7474 \
     -p 7687:7687 \
     -e NEO4J_AUTH=neo4j/test \
