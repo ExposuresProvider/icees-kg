@@ -45,6 +45,7 @@ FEATURES_YAML="FILL_THIS_IN"
 IDENTIFIERS_YAML="FILL_THIS_IN"
 NODE_NORM="FILL_THIS_IN"
 NAME_RESOLVER="FILL_THIS_IN"
+DATASET_NAME="FILL_THIS_IN"
 
 # 3. Generate P-Values tsv file
 There are two scripts that need to be run to generate tsv values that will be used by PLATER CLI tools to create a neo4j database with curie p-values. Both of these scripts live in the `./tsv_maker/` folder.
@@ -143,6 +144,6 @@ neo4j-admin dump --to=/backups/icees_kg.dump
 ```
 
 # 6. Take dump file and upload to kubernetes
-- Log in to robokopdev server through RENCI
+- Log in to hop.renci.org server
 - Upload dump file to /projects/stars/var/plater/bl-2.1/
 - Update helm charts in translator-devops repo and install
