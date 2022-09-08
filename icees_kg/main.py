@@ -45,7 +45,7 @@ assert dataset_name is not None, 'An environment variable called DATASET_NAME is
 # create output folder
 if not os.path.exists('../build'):
     os.makedirs('../build')
-
+LOGGER.info(f'Running precompute for dataset: {dataset_name}')
 LOGGER.info('Loading data files...')
 
 with open(features_yml, 'r') as f:
@@ -222,7 +222,7 @@ for data_csv in tqdm(data_csvs):
                 'object_feature_name': feature_description_2['feature_name'],
                 "p_value": p,
                 "chi_squared": chi_squared,
-                "total": np.sum(count_mat),
+                "total_sample_size": np.sum(count_mat),
             }
             LOGGER.info(f"{feature_description_1['feature_name']} -> {feature_description_2['feature_name']}")
 
