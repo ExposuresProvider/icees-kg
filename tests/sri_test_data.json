@@ -1,0 +1,173 @@
+{
+  "url": "https://automat.transltr.io/icees-kg/1.3",
+  "edges": [
+    {
+      "subject_category": "biolink:BiologicalProcess",
+      "object_category": "biolink:BiologicalProcess",
+      "predicate": "biolink:has_real_world_evidence_of_association_with",
+      "subject": "GO:0090664",
+      "object": "GO:0042697"
+    },
+    {
+      "subject_category": "biolink:BiologicalProcess",
+      "object_category": "biolink:Disease",
+      "predicate": "biolink:has_real_world_evidence_of_association_with",
+      "subject": "GO:0090664",
+      "object": "UMLS:C4520366"
+    },
+    {
+      "subject_category": "biolink:BiologicalProcess",
+      "object_category": "biolink:PhenotypicFeature",
+      "predicate": "biolink:has_real_world_evidence_of_association_with",
+      "subject": "GO:0090664",
+      "object": "UMLS:C1533019"
+    },
+    {
+      "subject_category": "biolink:BiologicalProcess",
+      "object_category": "biolink:SmallMolecule",
+      "predicate": "biolink:has_real_world_evidence_of_association_with",
+      "subject": "GO:0090664",
+      "object": "PUBCHEM.COMPOUND:14709"
+    },
+    {
+      "subject_category": "biolink:BiologicalProcess",
+      "object_category": "biolink:ChemicalEntity",
+      "predicate": "biolink:has_real_world_evidence_of_association_with",
+      "subject": "GO:0090664",
+      "object": "MESH:D052638"
+    },
+    {
+      "subject_category": "biolink:Disease",
+      "object_category": "biolink:Disease",
+      "predicate": "biolink:has_real_world_evidence_of_association_with",
+      "subject": "MONDO:0013282",
+      "object": "MONDO:0043693"
+    },
+    {
+      "subject_category": "biolink:Disease",
+      "object_category": "biolink:PhenotypicFeature",
+      "predicate": "biolink:has_real_world_evidence_of_association_with",
+      "subject": "MONDO:0013282",
+      "object": "UMLS:C0855619"
+    },
+    {
+      "subject_category": "biolink:Disease",
+      "object_category": "biolink:SmallMolecule",
+      "predicate": "biolink:has_real_world_evidence_of_association_with",
+      "subject": "UMLS:C4039988",
+      "object": "PUBCHEM.COMPOUND:5865"
+    },
+    {
+      "subject_category": "biolink:Disease",
+      "object_category": "biolink:ChemicalEntity",
+      "predicate": "biolink:has_real_world_evidence_of_association_with",
+      "subject": "MONDO:0002184",
+      "object": "CHEBI:2677"
+    },
+    {
+      "subject_category": "biolink:Disease",
+      "object_category": "biolink:BiologicalProcess",
+      "predicate": "biolink:has_real_world_evidence_of_association_with",
+      "subject": "UMLS:C4543404",
+      "object": "GO:0090664"
+    },
+    {
+      "subject_category": "biolink:Disease",
+      "object_category": "biolink:BiologicalProcess",
+      "predicate": "biolink:has_real_world_evidence_of_association_with",
+      "subject": "UMLS:C4543404",
+      "object": "GO:0090664"
+    },
+    {
+      "subject_category": "biolink:PhenotypicFeature",
+      "object_category": "biolink:PhenotypicFeature",
+      "predicate": "biolink:has_real_world_evidence_of_association_with",
+      "subject": "UMLS:C0855619",
+      "object": "UMLS:C0855623"
+    },
+    {
+      "subject_category": "biolink:PhenotypicFeature",
+      "object_category": "biolink:SmallMolecule",
+      "predicate": "biolink:has_real_world_evidence_of_association_with",
+      "subject": "UMLS:C0557509",
+      "object": "PUBCHEM.COMPOUND:5865"
+    },
+    {
+      "subject_category": "biolink:PhenotypicFeature",
+      "object_category": "biolink:Disease",
+      "predicate": "biolink:has_real_world_evidence_of_association_with",
+      "subject": "UMLS:C0855619",
+      "object": "MONDO:0044982"
+    },
+    {
+      "subject_category": "biolink:PhenotypicFeature",
+      "object_category": "biolink:ChemicalEntity",
+      "predicate": "biolink:has_real_world_evidence_of_association_with",
+      "subject": "HP:0004379",
+      "object": "CHEBI:2677"
+    },
+    {
+      "subject_category": "biolink:PhenotypicFeature",
+      "object_category": "biolink:BiologicalProcess",
+      "predicate": "biolink:has_real_world_evidence_of_association_with",
+      "subject": "UMLS:C1277172",
+      "object": "GO:0090664"
+    },
+    {
+      "subject_category": "biolink:ChemicalEntity",
+      "object_category": "biolink:ChemicalEntity",
+      "predicate": "biolink:has_real_world_evidence_of_association_with",
+      "subject": "CHEBI:2677",
+      "object": "PUBCHEM.COMPOUND:5865"
+    },
+    {
+      "subject_category": "biolink:ChemicalEntity",
+      "object_category": "biolink:Disease",
+      "predicate": "biolink:has_real_world_evidence_of_association_with",
+      "subject": "CHEBI:2677",
+      "object": "MONDO:0005231"
+    },
+    {
+      "subject_category": "biolink:ChemicalEntity",
+      "object_category": "biolink:PhenotypicFeature",
+      "predicate": "biolink:has_real_world_evidence_of_association_with",
+      "subject": "CHEBI:2677",
+      "object": "UMLS:C0424755"
+    },
+    {
+      "subject_category": "biolink:ChemicalEntity",
+      "object_category": "biolink:BiologicalProcess",
+      "predicate": "biolink:has_real_world_evidence_of_association_with",
+      "subject": "PUBCHEM.COMPOUND:122252",
+      "object": "GO:0090664"
+    },
+    {
+      "subject_category": "biolink:SmallMolecule",
+      "object_category": "biolink:SmallMolecule",
+      "predicate": "biolink:has_real_world_evidence_of_association_with",
+      "subject": "PUBCHEM.COMPOUND:5865",
+      "object": "CHEBI:9011"
+    },
+    {
+      "subject_category": "biolink:SmallMolecule",
+      "object_category": "biolink:Disease",
+      "predicate": "biolink:has_real_world_evidence_of_association_with",
+      "subject": "PUBCHEM.COMPOUND:5865",
+      "object": "MONDO:0018229"
+    },
+    {
+      "subject_category": "biolink:SmallMolecule",
+      "object_category": "biolink:PhenotypicFeature",
+      "predicate": "biolink:has_real_world_evidence_of_association_with",
+      "subject": "PUBCHEM.COMPOUND:5865",
+      "object": "UMLS:C0425378"
+    },
+    {
+      "subject_category": "biolink:SmallMolecule",
+      "object_category": "biolink:BiologicalProcess",
+      "predicate": "biolink:has_real_world_evidence_of_association_with",
+      "subject": "PUBCHEM.COMPOUND:122252",
+      "object": "GO:0090664"
+    }
+  ]
+}
