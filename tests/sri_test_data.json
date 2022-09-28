@@ -168,6 +168,27 @@
       "predicate": "biolink:has_real_world_evidence_of_association_with",
       "subject": "PUBCHEM.COMPOUND:122252",
       "object": "GO:0090664"
+    },
+    {
+      "subject_category": "biolink:Disease",
+      "object_category": "biolink:Disease",
+      "predicate": "biolink:has_real_world_evidence_of_association_with",
+      "subject": "MONDO:0004979",
+      "object": "UMLS:C4304080"
+    },
+    {
+      "subject_category": "biolink:Disease",
+      "object_category": "biolink:PhenotypicFeature",
+      "predicate": "biolink:has_real_world_evidence_of_association_with",
+      "subject": "MONDO:0016575",
+      "object": "NCIT:C144348"
+    },
+    {
+      "subject_category": "biolink:Disease",
+      "object_category": "biolink:Disease",
+      "predicate": "biolink:has_real_world_evidence_of_association_with",
+      "subject": "MONDO:0005359",
+      "object": "MONDO:0005071"
     }
   ]
 }
