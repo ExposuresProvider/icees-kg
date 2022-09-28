@@ -216,7 +216,7 @@ for data_csv in tqdm(data_csvs):
             # Package edge properties
             edge_props = {
                 'biolink:supporting_data_source': 'https://github.com/NCATSTranslator/Translator-All/wiki/Exposures-Provider-ICEES',
-                'terms_and_conditions_of_use': 'https://github.com/NCATSTranslator/Translator-All/wiki/ICEES--and-ICEES-KG-Terms-and-Conditions-of-Use',
+                'terms_and_conditions_of_use': 'https://github.com/NCATSTranslator/Translator-All/wiki/Exposures-Provider-ICEES-and-ICEES-KG-Terms-and-Conditions-of-Use',
                 'icees_cohort_identifier': icees_cohort_identifier,
                 'subject_feature_name': feature_description_1['feature_name'],
                 'object_feature_name': feature_description_2['feature_name'],
