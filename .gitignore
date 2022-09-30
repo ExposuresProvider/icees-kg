@@ -1,5 +1,7 @@
 .DS_Store
+__pycache__
 .env
 data/
 backups/
 build/
+/Data_services*
