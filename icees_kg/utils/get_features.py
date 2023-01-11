@@ -1,5 +1,6 @@
 import numpy as np
 import logging
+import scipy.stats as scistats
 
 LOGGER = logging.getLogger(__name__)
 
@@ -82,3 +83,67 @@ def get_feature_matrix_json(count_mat):
         matrix.append(row)
 
     return matrix
+
+
+def get_edge_stats(count_mat):
+    """Compute edge statistics from count matrix."""
+    # Currently we calculate the chi2 value and parameter
+    # We can do this for any size count_mat
+
+    eps = np.finfo(np.float32).eps
+    chi_squared_statistic, chi_squared_p, chi_squared_dof, _ = scistats.chi2_contingency(count_mat + eps, correction=False)
+
+    # we are changing some variable names for clarity
+    # chi_squared ---> chi_squared_statistic
+    # p_value ---> chi_squared_p
+
+    edge_stats = {
+        "chi_squared_statistic": chi_squared_statistic,
+        "chi_squared_dof": chi_squared_dof,
+        "chi_squared_p": chi_squared_p,
+        "total_sample_size": np.sum(count_mat),
+    }
+
+    # If we only have a 2x2 count_mat and there are no zeroes we can do other tests
+    if count_mat.shape == (2, 2) and not np.any(count_mat==0):
+
+        try:
+            # We could also do a fisher_exact test
+            # Technically the chi_squared is an approximate at smaller sample sizes
+            # At larger sample sizes this can be slow? apparently? I think it's fine though
+            fisher_exact_odds_ratio, fisher_exact_p = scistats.fisher_exact(count_mat, alternative='two-sided')
+
+            # For 2D count_mat we can also calculate the odds ratio with scipy
+            # But this seems to be missing from some versions of scipy
+            # oddsratio = scistats.contingency.odds_ratio(count_mat)
+            # The odds_ratio method also can give you confidence internal
+            # Which fisher_exact can't 
+
+            # We can just write our own quick version though
+            odds_r0 = count_mat[0][0]/count_mat[0][1]
+            odds_r1 = count_mat[1][0]/count_mat[1][1]
+
+            try:
+                odds_ratio = odds_r0/odds_r1 # This is the same as fisher
+                # https://www.bmj.com/content/bmj/320/7247/1468.1.full.pdf
+            except Exception as e:
+                LOGGER.error(f"Error comupting odds ratio: {e}")
+
+            log_odds_ratio = np.log(odds_ratio)
+
+            se_log_odds_ratio = np.sqrt(
+                1/(count_mat[0][0] + eps) + 1/(count_mat[0][1] + eps) + 1/(count_mat[1][0] + eps) + 1/(count_mat[1][1]  + eps)
+            )
+
+            log_odds_ratio_interval = [log_odds_ratio - 1.96*se_log_odds_ratio, log_odds_ratio + 1.96*se_log_odds_ratio]
+
+            edge_stats.update({
+                "fisher_exact_odds_ratio": fisher_exact_odds_ratio,
+                "fisher_exact_p": fisher_exact_p,
+                "log_odds_ratio": log_odds_ratio,
+                "log_odds_ratio_95_confidence_interval": log_odds_ratio_interval,
+            })
+        except Exception as e:
+            LOGGER.error(f"Error computing edge stats: {e}")
+
+    return edge_stats

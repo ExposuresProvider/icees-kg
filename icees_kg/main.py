@@ -5,7 +5,6 @@ import logging
 import numpy as np
 import os
 from pathlib import Path
-from scipy.stats import chi2_contingency
 import sys
 from tqdm import tqdm
 import yaml
@@ -15,7 +14,7 @@ from Common.kgx_file_writer import KGXFileWriter
 from Common.kgx_file_normalizer import remove_orphan_nodes
 
 from utils.node_lookup import node_lookup
-from utils.get_features import get_feature_count_matrix, get_feature_info_from_column_info, get_feature_matrix_json
+from utils.get_features import get_feature_count_matrix, get_feature_info_from_column_info, get_edge_stats
 
 load_dotenv()
 
@@ -167,6 +166,10 @@ for data_csv in tqdm(data_csvs):
             continue
 
         for curie, node in i_normalized_nodes.items():
+            if "categories" in node and "categories" in i_column_info:
+                # add hard coded categories from features yaml file
+                node["categories"].extend(i_column_info["categories"])
+                node["categories"] = list(set(node["categories"]))
             node_dict[curie] = node
 
         feature_description_1 = get_feature_info_from_column_info(i_column_info)
@@ -191,13 +194,18 @@ for data_csv in tqdm(data_csvs):
 
             j_normalized_nodes = {}
             for node_search in j_column_info['name_lookup']:
-                j_normalized_nodes.update(node_lookup(node_search['search_term'], node_search['limit']))
+                normalized_node = node_lookup(node_search['search_term'], node_search['limit'])
+                j_normalized_nodes.update(normalized_node)
 
             if not j_normalized_nodes:
                 # normalized_nodes could be empty dict
                 continue
 
             for curie, node in j_normalized_nodes.items():
+                if "categories" in node and "categories" in j_column_info:
+                    # add hard coded categories from features yaml file
+                    node["categories"].extend(j_column_info["categories"])
+                    node["categories"] = list(set(node["categories"]))
                 node_dict[curie] = node
 
             feature_description_2 = get_feature_info_from_column_info(j_column_info)
@@ -207,11 +215,20 @@ for data_csv in tqdm(data_csvs):
             else:  # enum
                 u_x2 = list(range(len(j_column_info['enum'])))
 
+            LOGGER.info(f"{feature_description_1['feature_name']} -> {feature_description_2['feature_name']}")
             # Calculate stats for i_col and j_col
             # x1 is the column_sum
             # x2 is the row_sum
-            count_mat, row_summary, col_summary = get_feature_count_matrix(x1, x2, u_x1, u_x2, i_column, j_column)
-            chi_squared, p, *_ = chi2_contingency(count_mat + np.finfo(np.float32).eps, correction=False)
+            try:
+                count_mat, row_summary, col_summary = get_feature_count_matrix(x1, x2, u_x1, u_x2, i_column, j_column)
+                edge_stats = get_edge_stats(count_mat)
+            except Exception as e:
+                LOGGER.error(f"Error making edge stats: {e}")
+                continue
+
+            if edge_stats["chi_squared_p"] > 0.5:
+                # discard any edges that aren't significant
+                continue
 
             # Package edge properties
             edge_props = {
@@ -220,11 +237,8 @@ for data_csv in tqdm(data_csvs):
                 'icees_cohort_identifier': icees_cohort_identifier,
                 'subject_feature_name': feature_description_1['feature_name'],
                 'object_feature_name': feature_description_2['feature_name'],
-                "p_value": p,
-                "chi_squared": chi_squared,
-                "total_sample_size": np.sum(count_mat),
             }
-            LOGGER.info(f"{feature_description_1['feature_name']} -> {feature_description_2['feature_name']}")
+            edge_props.update(edge_stats)
 
             for i_id in i_normalized_nodes.keys():
                 for j_id in j_normalized_nodes.keys():
