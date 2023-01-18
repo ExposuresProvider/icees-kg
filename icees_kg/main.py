@@ -246,7 +246,7 @@ for data_csv in tqdm(data_csvs):
                     new_edge = kgxedge(
                         subject_id=i_id,
                         object_id=j_id,
-                        predicate="biolink:has_real_world_evidence_of_association_with",
+                        predicate="biolink:correlated_with",
                         primary_knowledge_source="infores:icees-kg",
                         edgeprops=edge_props,
                     )
