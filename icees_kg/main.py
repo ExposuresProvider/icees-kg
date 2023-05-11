@@ -11,10 +11,10 @@ import yaml
 
 from Common.kgxmodel import kgxnode, kgxedge
 from Common.kgx_file_writer import KGXFileWriter
-from Common.kgx_file_normalizer import remove_orphan_nodes
+from Common.kgx_file_normalizer import remove_unconnected_nodes
 
 from utils.node_lookup import node_lookup
-from utils.get_features import get_feature_count_matrix, get_feature_info_from_column_info, get_edge_stats
+from utils.get_features import get_feature_info_from_column_info, get_edge_stats
 
 load_dotenv()
 
@@ -85,6 +85,8 @@ for data_csv in tqdm(data_csvs):
 
         # Set the current column information
         if feature_info.get('enum', None):
+            # make sure enums are the same order every time
+            feature_info["enum"].sort()
             column_info = {
                 'name': column,
                 'enum': feature_info['enum'],
@@ -220,15 +222,14 @@ for data_csv in tqdm(data_csvs):
             # x1 is the column_sum
             # x2 is the row_sum
             try:
-                count_mat, row_summary, col_summary = get_feature_count_matrix(x1, x2, u_x1, u_x2, i_column, j_column)
-                edge_stats = get_edge_stats(count_mat)
+                predicate, edge_stats = get_edge_stats(x1, x2, u_x1, u_x2, i_column, j_column, i_column_info, j_column_info)
             except Exception as e:
                 LOGGER.error(f"Error making edge stats: {e}")
                 continue
 
-            if edge_stats["chi_squared_p"] > 0.5:
-                # discard any edges that aren't significant
-                continue
+            # if edge_stats["chi_squared_p"] > 0.5:
+            #     # discard any edges that aren't significant
+            #     continue
 
             # Package edge properties
             edge_props = {
@@ -246,8 +247,8 @@ for data_csv in tqdm(data_csvs):
                     new_edge = kgxedge(
                         subject_id=i_id,
                         object_id=j_id,
-                        predicate="biolink:correlated_with",
-                        primary_knowledge_source="infores:icees-kg",
+                        predicate=predicate,
+                        primary_knowledge_source="infores:automat-icees-kg",
                         edgeprops=edge_props,
                     )
                     edge_list.append(new_edge)
@@ -281,6 +282,6 @@ for data_csv in tqdm(data_csvs):
             # write out the node
             file_writer.write_kgx_node(node)
 
-    orphan_nodes_removed = remove_orphan_nodes(nodes_output_file_path, edges_output_file_path)
+    orphan_nodes_removed = remove_unconnected_nodes(nodes_output_file_path, edges_output_file_path)
 
 LOGGER.info('All done!')

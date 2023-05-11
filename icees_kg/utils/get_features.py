@@ -23,19 +23,7 @@ def get_feature_count_matrix(x1, x2, u_x1, u_x2, feature_1, feature_2):
     if errors:
         LOGGER.warning(f"Computed count matrix with errors for {feature_1} and {feature_2}")
 
-    row_count = np.sum(feat_count_mat, axis=0)
-    row_density = row_count / np.sum(row_count)
-
-    # This is a little confusing because when you sum through the rows, you have something the length of the columns
-    col_summary = [{"frequency": row_count[ind], "percentage": row_density[ind]} for ind in range(row_count.size)],  # cols will refer to feature_a (x1)
-
-    col_count = np.sum(feat_count_mat, axis=1)
-    col_density = col_count / np.sum(col_count)
-
-    # This is a little confusing because when you sum through the columns, you have something the length of the rows
-    row_summary = [{"frequency": col_count[ind], "percentage": col_density[ind]} for ind in range(col_count.size)],  # rows will refer to feature_b (x2)
-
-    return feat_count_mat, row_summary, col_summary
+    return feat_count_mat
 
 
 def get_feature_info_from_column_info(column_info):
@@ -85,8 +73,11 @@ def get_feature_matrix_json(count_mat):
     return matrix
 
 
-def get_edge_stats(count_mat):
+def get_edge_stats(x1, x2, u_x1, u_x2, i_column, j_column, i_column_info, j_column_info):
     """Compute edge statistics from count matrix."""
+    predicate = "biolink:correlated_with"
+
+    count_mat = get_feature_count_matrix(x1, x2, u_x1, u_x2, i_column, j_column)
     # Currently we calculate the chi2 value and parameter
     # We can do this for any size count_mat
 
@@ -137,13 +128,21 @@ def get_edge_stats(count_mat):
 
             log_odds_ratio_interval = [log_odds_ratio - 1.96*se_log_odds_ratio, log_odds_ratio + 1.96*se_log_odds_ratio]
 
+            truthy_features = [["False", "True"], ["false", "true"], ["Negative", "Positive"], ["0", "1"], ["no", "yes"]]
+            # ["Ever", "Never"]
+            if i_column_info["enum"] in truthy_features and j_column_info["enum"] in truthy_features:
+                if log_odds_ratio < -np.log(1.25):
+                    predicate = "biolink:negatively_correlated_with"
+                elif log_odds_ratio > np.log(1.25):
+                    predicate = "biolink:positively_correlated_with"
+
             edge_stats.update({
                 "fisher_exact_odds_ratio": fisher_exact_odds_ratio,
                 "fisher_exact_p": fisher_exact_p,
                 "log_odds_ratio": log_odds_ratio,
-                "log_odds_ratio_95_confidence_interval": log_odds_ratio_interval,
+                "log_odds_ratio_95_ci": log_odds_ratio_interval,
             })
         except Exception as e:
             LOGGER.error(f"Error computing edge stats: {e}")
 
-    return edge_stats
+    return predicate, edge_stats
