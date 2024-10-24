@@ -9,14 +9,14 @@ import sys
 from tqdm import tqdm
 import yaml
 
+load_dotenv()
+
 from Common.kgxmodel import kgxnode, kgxedge
 from Common.kgx_file_writer import KGXFileWriter
 from Common.kgx_file_normalizer import remove_unconnected_nodes
 
 from utils.node_lookup import node_lookup
 from utils.get_features import get_feature_info_from_column_info, get_edge_stats
-
-load_dotenv()
 
 now = datetime.now()
 now_string = now.strftime('%Y_%m_%d_%H_%M_%S')
@@ -25,7 +25,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="[%(asctime)s: %(levelname)s/%(name)s]: %(message)s",
     handlers=[
-        logging.FileHandler(f"../logs/icees_kg_{now_string}.log"),
+        logging.FileHandler(f"{Path(__file__).parent.parent.resolve()}/logs/icees_kg_{now_string}.log"),
         logging.StreamHandler(sys.stdout),
     ]
 )
@@ -86,7 +86,11 @@ for data_csv in tqdm(data_csvs):
         # Set the current column information
         if feature_info.get('enum', None):
             # make sure enums are the same order every time
-            feature_info["enum"].sort()
+            try:
+                feature_info["enum"].sort(key=lambda x: (isinstance(x, str), x))
+            except Exception:
+                print(feature_info)
+                raise KeyError()
             column_info = {
                 'name': column,
                 'enum': feature_info['enum'],
@@ -273,7 +277,7 @@ for data_csv in tqdm(data_csvs):
 
             # Package edge properties
             edge_props = {
-                'biolink:supporting_data_source': 'https://github.com/NCATSTranslator/Translator-All/wiki/Exposures-Provider-ICEES',
+                'biolink:has_supporting_study_result': 'https://github.com/NCATSTranslator/Translator-All/wiki/ICEES',
                 'terms_and_conditions_of_use': 'https://github.com/NCATSTranslator/Translator-All/wiki/Exposures-Provider-ICEES-and-ICEES-KG-Terms-and-Conditions-of-Use',
                 'icees_cohort_identifier': icees_cohort_identifier,
                 'subject_feature_name': feature_description_1['feature_name'],
@@ -288,7 +292,7 @@ for data_csv in tqdm(data_csvs):
                         subject_id=i_id,
                         object_id=j_id,
                         predicate=predicate,
-                        primary_knowledge_source="infores:automat-icees-kg",
+                        primary_knowledge_source="infores:icees-kg",
                         edgeprops=edge_props,
                     )
                     edge_list.append(new_edge)

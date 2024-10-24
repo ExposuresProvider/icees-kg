@@ -21,7 +21,7 @@ def node_lookup(search_term: str, limit: int) -> dict:
         LOGGER.warning(f'Failed to get identifiers for {search_term}')
         return {}
     response_json = response.json()
-    i_identifiers = list(response_json.keys())
+    i_identifiers = [result["curie"] for result in response_json]
     if not len(i_identifiers):
         LOGGER.warning(f'No identifiers found for {search_term}')
         return {}
@@ -37,15 +37,16 @@ def node_lookup(search_term: str, limit: int) -> dict:
     nodes = {}
     try:
         normalized_identifiers = response.json()
-        for curie, node in normalized_identifiers.items():
+        for node in normalized_identifiers.values():
             if node is not None:
-                nodes[curie] = {
+                preferred_identifier = node["id"]["identifier"]
+                nodes[preferred_identifier] = {
                     'name': node['id'].get('label', ''),
                     'equivalent_identifiers': [eq_identifier['identifier'] for eq_identifier in node.get('equivalent_identifiers', [])],
                     'categories': node.get('type', []),
                 }
                 if 'information_content' in node:
-                    nodes[curie]['information_content'] = node['information_content']
+                    nodes[preferred_identifier]['information_content'] = node['information_content']
     except Exception as e:
         LOGGER.error(f"Failed to parse node norm response: {e}")
         return {}

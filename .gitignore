@@ -1,7 +1,12 @@
 .DS_Store
+.vscode
 __pycache__
 .env
 data/
 backups/
 build/
 /Data_services*
+icees_kg/Common/*
+scripts/*
+data_services_logs/*
+releases/
