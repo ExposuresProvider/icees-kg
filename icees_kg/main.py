@@ -129,10 +129,50 @@ for data_csv in tqdm(data_csvs):
                     data_col_np[i_row] = d[column]
                 # else leave nan
         else:  # enum
-            val_map = {v: i for i, v in enumerate(column_info['enum'])}
+            # all enums seem to be ints or strings
+            enum_valid = [e for e in column_info["enum"] if not isinstance(e,str)]
+            enum_equal_map = {v: i for i, v in enumerate(column_info["enum"]) if not (isinstance(v,str) and ('>' in v or '<' in v))}
+            enum_gt = None
+            enum_lt = None
+            for i, e in enumerate(column_info["enum"]):
+                if isinstance(e, str):
+                    if '>' in e and enum_gt is None:
+                        enum_gt = {
+                            "label": e,
+                            "gt": float(e.replace('>','')),
+                            "val": i,
+                        }
+                    elif '<' in e and enum_lt is None:
+                        enum_lt = {
+                            "label": e,
+                            "lt": float(e.replace('<','')),
+                            "val": i,
+                        }
             for i_row, d in enumerate(data):
                 if d.get(column, None):
-                    data_col_np[i_row] = val_map.get(d[column], np.nan)
+                    try:
+                        tmp = int(float(d[column]))
+                        if tmp == float(d[column]):
+                            d[column] = tmp
+                    except:
+                        # conversion didn't work
+                        pass
+                    try:
+                        if str(d[column]) in enum_equal_map:
+                            data_col_np[i_row] = enum_equal_map[str(d[column])]
+                        elif enum_gt and d[column] > enum_gt['gt']:
+                            data_col_np[i_row] = enum_gt['val']
+                        elif enum_lt and d[column] < enum_lt['lt']:
+                            data_col_np[i_row] = enum_lt['val']
+                        else:
+                            LOGGER.warning(f"Warning: {column} has a value not in the enums: {d[column]}")
+                            data_col_np[i_row] = np.nan
+                    except Exception as e:
+                        print(d, column)
+                        print(enum_equal_map)
+                        print(d[column])
+                        print(e)
+                        exit()
                 # else leave nan
 
         # The above does this in place
